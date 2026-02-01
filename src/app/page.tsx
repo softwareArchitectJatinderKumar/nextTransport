@@ -1,14 +1,15 @@
-import Dashboard from "./Dashboard/page";
+'use client';
+import dynamic from 'next/dynamic';
+
+// Use dynamic import with ssr: false to prevent Supabase issues during build
+const Dashboard = dynamic(() => import("./Dashboard/page"), { 
+  ssr: false,
+  loading: () => <div className="p-5 text-center"><div className="spinner-border text-primary"></div></div>
+});
 
 export default function HomePage() {
   return (
     <div className="container text-center py-5">
-      {/* <h1 className="display-4 fw-bold">Enterprise Fast-Track</h1>
-      <p className="lead text-muted">A Solution Architect's blueprint for Next.js.</p>
-      <div className="mt-4">
-        <button className="btn btn-primary btn-lg px-4 me-md-2">Get Started</button>
-        <button className="btn btn-outline-secondary btn-lg px-4">Documentation</button>
-      </div> */}
       <Dashboard readOnly={true} />
     </div>
   );

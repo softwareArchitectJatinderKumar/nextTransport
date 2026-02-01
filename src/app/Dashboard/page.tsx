@@ -1,13 +1,16 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useRef } from 'react';
 import { transportService } from '@/services/transportService';
-import TransportModal from './TransportModal';
+
+// Use dynamic import for TransportModal to prevent SSR issues
+const TransportModalDynamic = dynamic(() => import('./TransportModal'), { ssr: false });
 
 interface DashboardProps {
   readOnly?: boolean;
 }
 
-export default function Dashboard({ readOnly = false }: DashboardProps) {
+function DashboardContent({ readOnly = false }: DashboardProps) {
   const [data, setData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +25,7 @@ export default function Dashboard({ readOnly = false }: DashboardProps) {
 
   // Advanced Filter State
   const filterKeys = [
-    'CRANE', 'CONTAINER', 'FULL_LOADS', 'General_Freight', 'Crane','Urgent',
+    'CRANE', 'CONTAINER', 'FULL_LOADS', 'General_freight', 
     'Vehicle', 'Refrigerated', 'URGENT', 'Sensitive', 'Freight'
   ];
   const [activeFilters, setActiveFilters] = useState<{ [key: string]: boolean }>(
@@ -253,7 +256,7 @@ export default function Dashboard({ readOnly = false }: DashboardProps) {
       </div>
 
       {!readOnly && (
-        <TransportModal 
+        <TransportModalDynamic
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 
           onSave={async (formData) => {
@@ -268,4 +271,8 @@ export default function Dashboard({ readOnly = false }: DashboardProps) {
       )}
     </div>
   );
+}
+
+export default function Dashboard(props: DashboardProps) {
+  return <DashboardContent {...props} />;
 }
