@@ -1,10 +1,32 @@
-import { createClient } from '@/utils/supabase/client';
+import { createBrowserClient } from '@supabase/ssr'
 
-const supabase = createClient();
+// Create client lazily to avoid build-time errors
+function getSupabaseClient() {
+  if (typeof window === 'undefined') {
+    // Return a dummy client for server-side during build
+    return null;
+  }
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase environment variables not configured');
+    return null;
+  }
+  
+  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+}
 
 export const transportService = {
   // 1. Fetch all records
   async getAll() {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      // Return mock data for build/preview without Supabase
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('Transports')
       .select('*')
@@ -19,12 +41,14 @@ export const transportService = {
 
   // 2. Insert a record
   async create(payload: any) {
-    // Architect Tip: Ensure we don't accidentally send empty ID strings
+    const supabase = getSupabaseClient();
+    if (!supabase) throw new Error('Supabase not configured');
+    
     const { data, error } = await supabase
       .from('Transports')
       .insert([payload])
       .select()
-      .single(); // Return the newly created object specifically
+      .single();
     
     if (error) throw error;
     return data;
@@ -32,9 +56,9 @@ export const transportService = {
 
   // 3. Update a record
   async update(id: string | number, payload: any) {
-    /** * FIX: Remove system fields from payload before sending to Supabase.
-     * Supabase will throw an error if you try to "update" the ID field.
-     */
+    const supabase = getSupabaseClient();
+    if (!supabase) throw new Error('Supabase not configured');
+    
     const { id: _, created_at: __, ...updateData } = payload;
 
     const { data, error } = await supabase
@@ -50,6 +74,9 @@ export const transportService = {
 
   // 4. Delete a record
   async delete(id: string | number) {
+    const supabase = getSupabaseClient();
+    if (!supabase) throw new Error('Supabase not configured');
+    
     const { error } = await supabase
       .from('Transports')
       .delete()
