@@ -1,6 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { transportService } from '@/services/transportService';
 
 // Use dynamic import for TransportModal to prevent SSR issues
@@ -11,6 +12,7 @@ interface DashboardProps {
 }
 
 function DashboardContent({ readOnly = false }: DashboardProps) {
+  const router = useRouter();
   const [data, setData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,18 +21,32 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(10);
 
   // Advanced Filter State
   const filterKeys = [
-    'CRANE', 'CONTAINER', 'FULL_LOADS', 'General_freight', 
+    'CRANE', 'CONTAINER', 'FULL_LOADS', 'General_Freight', 'Crane','Urgent',
     'Vehicle', 'Refrigerated', 'URGENT', 'Sensitive', 'Freight'
   ];
   const [activeFilters, setActiveFilters] = useState<{ [key: string]: boolean }>(
     filterKeys.reduce((acc, key) => ({ ...acc, [key]: false }), {})
   );
+
+  // Check authentication for non-readonly mode
+  useEffect(() => {
+    if (!readOnly) {
+      const isAuth = localStorage.getItem('auth-token') === 'authenticated';
+      if (!isAuth) {
+        router.push('/login');
+        return;
+      }
+    }
+  }, [readOnly, router]);
 
   const loadData = async () => {
     setLoading(true);
@@ -55,20 +71,31 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle filtering logic
+  // Handle search and filtering logic
   useEffect(() => {
+    let result = [...data];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(item => 
+        Object.values(item).some(val => 
+          String(val).toLowerCase().includes(query)
+        )
+      );
+    }
+
+    // Apply advanced filters
     const selectedFilters = Object.keys(activeFilters).filter(key => activeFilters[key]);
-    
-    if (selectedFilters.length === 0) {
-      setFilteredData(data);
-    } else {
-      const filtered = data.filter(item => 
+    if (selectedFilters.length > 0) {
+      result = result.filter(item => 
         selectedFilters.every(filter => item[filter] === true || item[filter] === 1 || item[filter] === 'true')
       );
-      setFilteredData(filtered);
     }
+
+    setFilteredData(result);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [activeFilters, data]);
+  }, [searchQuery, activeFilters, data]);
 
   const toggleFilter = (key: string) => {
     setActiveFilters(prev => ({ ...prev, [key]: !prev[key] }));
@@ -76,6 +103,7 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
 
   const clearFilters = () => {
     setActiveFilters(filterKeys.reduce((acc, key) => ({ ...acc, [key]: false }), {}));
+    setSearchQuery('');
     setShowFilterDropdown(false);
   };
 
@@ -123,59 +151,73 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
     <div className="container-fluid mt-4 px-4">
       {/* Main Grid */}
       <div className="card shadow-sm border-0">
-        <div className="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-          <h5 className="mb-0 fw-bold">Fleet Directory <span className="badge bg-secondary ms-2">{filteredData.length}</span></h5>
-          {!readOnly && (
-            <div className="d-flex align-items-center gap-2">
-              {/* Advanced Filter Button */}
-              <div className="position-relative" ref={filterDropdownRef}>
-                <button 
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className={`btn btn-sm ${activeFilterCount > 0 ? 'btn-warning' : 'btn-outline-secondary'} px-3`}
-                >
-                  Advanced Filter {activeFilterCount > 0 && <span className="badge bg-danger ms-1">{activeFilterCount}</span>}
-                </button>
-                
-                {/* Filter Dropdown */}
-                {showFilterDropdown && (
-                  <div className="position-absolute end-0 mt-2 bg-white border rounded shadow-lg p-3" style={{ width: '280px', zIndex: 1000 }}>
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <h6 className="mb-0 fw-bold">Filter Options</h6>
-                      <button className="btn btn-link btn-sm text-decoration-none" onClick={clearFilters}>Clear All</button>
-                    </div>
-                    <hr className="my-2"/>
-                    {filterKeys.map(key => (
-                      <div className="form-check mb-2" key={key}>
-                        <input 
-                          className="form-check-input" 
-                          type="checkbox" 
-                          id={`filter-${key}`}
-                          checked={activeFilters[key]}
-                          onChange={() => toggleFilter(key)}
-                        />
-                        <label className="form-check-label small text-capitalize" htmlFor={`filter-${key}`}>
-                          {key.replace('_', ' ')}
-                        </label>
-                      </div>
-                    ))}
-                    <hr className="my-2"/>
-                    <button 
-                      className="btn btn-primary btn-sm w-100"
-                      onClick={() => setShowFilterDropdown(false)}
-                    >
-                      Apply Filters
-                    </button>
-                  </div>
+        <div className="card-header bg-white py-3">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="mb-0 fw-bold">Fleet Directory <span className="badge bg-secondary ms-2">{filteredData.length}</span></h5>
+            {!readOnly && (
+              <div className="d-flex align-items-center gap-2">
+                <button onClick={() => { setSelectedRecord(null); setIsModalOpen(true); }} className="btn btn-primary btn-sm px-3">+ Add New</button>
+              </div>
+            )}
+          </div>
+          
+          {/* Search and Filter Row - Improved UI */}
+          <div className="bg-light rounded p-3">
+            {/* Search Box */}
+            <div className="mb-3">
+              <div className="input-group input-group-sm">
+                <span className="input-group-text bg-white"><i className="bi bi-search"></i></span>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search all columns..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button 
+                    className="btn btn-outline-secondary" 
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <i className="bi bi-x-lg"></i>
+                  </button>
                 )}
               </div>
-              
-              <button onClick={() => { setSelectedRecord(null); setIsModalOpen(true); }} className="btn btn-primary btn-sm px-3">+ Add New</button>
             </div>
-          )}
-          {readOnly && activeFilterCount > 0 && (
-            <span className="badge bg-warning text-dark">{activeFilterCount} filter(s) active</span>
-          )}
+            
+            {/* Horizontal Filter Checkboxes - Improved UI */}
+            <div>
+              <div className="d-flex align-items-center gap-2 mb-2">
+                <span className="small fw-semibold text-muted text-uppercase">Quick Filters:</span>
+                {(activeFilterCount > 0 || searchQuery) && (
+                  <button 
+                    className="btn btn-link btn-sm text-decoration-none text-danger p-0"
+                    onClick={clearFilters}
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+              <div className="d-flex flex-wrap gap-2">
+                {filterKeys.map(key => (
+                  <label 
+                    key={key} 
+                    className={`btn btn-sm ${activeFilters[key] ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  >
+                    <input 
+                      type="checkbox" 
+                      className="d-none"
+                      checked={activeFilters[key]}
+                      onChange={() => toggleFilter(key)}
+                    />
+                    {key.replace('_', ' ')}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
+        
         <div className="table-responsive" style={{ maxHeight: '75vh' }}>
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light sticky-top">
@@ -187,21 +229,29 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
               </tr>
             </thead>
             <tbody>
-              {currentRecords.map((item, idx) => (
-                <tr key={item.id || idx}>
-                  {displayCols.map(c => (
-                    <td key={c} className="small text-truncate" style={{ maxWidth: '180px' }}>
-                      {String(item[c] ?? '-')}
-                    </td>
-                  ))}
-                  {!readOnly && (
-                    <td className="text-end px-4">
-                      <button onClick={() => { setSelectedRecord(item); setIsModalOpen(true); }} className="btn btn-sm btn-outline-info me-1">Edit</button>
-                      <button onClick={() => handleDelete(item.id)} className="btn btn-sm btn-outline-danger">Delete</button>
-                    </td>
-                  )}
+              {currentRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={displayCols.length + 1} className="text-center py-5 text-muted">
+                    No records found
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                currentRecords.map((item, idx) => (
+                  <tr key={item.id || idx}>
+                    {displayCols.map(c => (
+                      <td key={c} className="small text-truncate" style={{ maxWidth: '180px' }}>
+                        {String(item[c] ?? '-')}
+                      </td>
+                    ))}
+                    {!readOnly && (
+                      <td className="text-end px-4">
+                        <button onClick={() => { setSelectedRecord(item); setIsModalOpen(true); }} className="btn btn-sm btn-outline-info me-1">Edit</button>
+                        <button onClick={() => handleDelete(item.id)} className="btn btn-sm btn-outline-danger">Delete</button>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

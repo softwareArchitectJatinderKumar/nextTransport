@@ -20,6 +20,14 @@ export default function Navbar() {
     router.push('/login');
   };
 
+  const handleDashboardClick = (e: React.MouseEvent) => {
+    const auth = localStorage.getItem('auth-token') === 'authenticated';
+    if (!auth) {
+      e.preventDefault();
+      router.push('/login');
+    }
+  };
+
   // Don't show navbar on login page
   if (pathname === '/login') return null;
 
@@ -36,8 +44,14 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link className={`nav-link ${pathname === '/Dashboard' ? 'active' : ''}`} href="/Dashboard">Dashboard</Link>
-              <Link className="nav-link" href="/settings">Settings</Link>
+              <Link 
+                className={`nav-link ${pathname === '/Dashboard' ? 'active' : ''}`} 
+                href="/Dashboard"
+                onClick={handleDashboardClick}
+              >
+                Dashboard
+              </Link>
+              {/* <Link className="nav-link" href="/settings">Settings</Link> */}
               <button className="btn btn-outline-danger btn-sm ms-3" onClick={handleLogout}>Logout</button>
             </>
           )}
