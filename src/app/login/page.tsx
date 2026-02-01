@@ -12,7 +12,7 @@ export default function LoginPage() {
     e.preventDefault();
     
     // THE STATIC CHECK
-    if (email === 'adminUser@gmail.com' && password === 'S3cr3tKey@#') {
+    if (email === 'adminUser@gmail.com' && password === 'S3cr3tKey@#0') {
       // Set auth token in localStorage
       localStorage.setItem('auth-token', 'authenticated');
       
