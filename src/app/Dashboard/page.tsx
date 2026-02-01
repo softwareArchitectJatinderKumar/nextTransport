@@ -19,6 +19,7 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
   // Search state
@@ -345,13 +346,19 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 
           onSave={async (formData) => {
-            if (selectedRecord) await transportService.update(selectedRecord.id, formData);
-            else await transportService.create(formData);
-            setIsModalOpen(false);
-            loadData();
+            setIsSaving(true);
+            try {
+              if (selectedRecord) await transportService.update(selectedRecord.id, formData);
+              else await transportService.create(formData);
+              setIsModalOpen(false);
+              loadData();
+            } finally {
+              setIsSaving(false);
+            }
           }} 
           initialData={selectedRecord}
           columns={allKeys}
+          saving={isSaving}
         />
       )}
     </div>
