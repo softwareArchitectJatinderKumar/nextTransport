@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "bootstrap-icons";
 
 :root {
   --background: #ffffff;

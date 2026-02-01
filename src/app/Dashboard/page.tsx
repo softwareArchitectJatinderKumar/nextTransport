@@ -19,6 +19,7 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
   // Search state
@@ -30,9 +31,7 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
 
   // Advanced Filter State
   const filterKeys = [
-    'CRANE', 'CONTAINER', 'FULL_LOADS', 'General_Freight', 'Crane','Urgent',
-    'Vehicle', 'Refrigerated', 'URGENT', 'Sensitive', 'Freight'
-  ];
+    'Container', 'FullLoads', 'GeneralFreight','Vehicle', 'Refrigerated','Urgent','Sensitive', 'Freight','Carrier','Crane'  ];
   const [activeFilters, setActiveFilters] = useState<{ [key: string]: boolean }>(
     filterKeys.reduce((acc, key) => ({ ...acc, [key]: false }), {})
   );
@@ -145,6 +144,21 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
   const allKeys = data.length > 0 ? Object.keys(data[0]) : [];
   const displayCols = allKeys.filter(key => !exemptColumns.includes(key));
 
+  // Column visibility breakpoints
+  // Small devices: show only location, contact person
+  // Tablet: show location, contact person, mobile_no
+  // Large screen: show all columns
+  const getColumnClass = (col: string) => {
+    const lowerCol = col.toLowerCase();
+    if (lowerCol.includes('location') || lowerCol.includes('contact_person')) {
+      return 'd-table-cell';
+    }
+    if (lowerCol.includes('mobile') || lowerCol.includes('phone')) {
+      return 'd-none d-md-table-cell';
+    }
+    return 'd-none d-lg-table-cell';
+  };
+
   if (loading) return <div className="p-5 text-center"><div className="spinner-border text-primary"></div></div>;
 
   return (
@@ -156,7 +170,14 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
             <h5 className="mb-0 fw-bold">Fleet Directory <span className="badge bg-secondary ms-2">{filteredData.length}</span></h5>
             {!readOnly && (
               <div className="d-flex align-items-center gap-2">
-                <button onClick={() => { setSelectedRecord(null); setIsModalOpen(true); }} className="btn btn-primary btn-sm px-3">+ Add New</button>
+                <button 
+                  onClick={() => { setSelectedRecord(null); setIsModalOpen(true); }} 
+                  className="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1"
+                  title="Add New Record"
+                >
+                  <i className="bi bi-plus-lg text-start"></i>
+                  {/* <span className="d-none d-sm-inline"><i className="bi bi-plus"></i></span> */}
+                </button>
               </div>
             )}
           </div>
@@ -223,7 +244,10 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
             <thead className="table-light sticky-top">
               <tr>
                 {displayCols.map(c => (
-                  <th key={c} className="text-uppercase small fw-bold text-muted">{c.replace('_', ' ')}</th>
+                  <th key={c} className={`text-uppercase small fw-bold text-muted ${getColumnClass(c)}`}>
+                    <span className="d-none d-sm-inline">{c.replace('_', ' ')}</span>
+                    <span className="d-sm-none">{c.substring(0, 4)}</span>
+                  </th>
                 ))}
                 {!readOnly && <th className="text-end px-4">Actions</th>}
               </tr>
@@ -239,14 +263,26 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
                 currentRecords.map((item, idx) => (
                   <tr key={item.id || idx}>
                     {displayCols.map(c => (
-                      <td key={c} className="small text-truncate" style={{ maxWidth: '180px' }}>
+                      <td key={c} className={`small text-truncate ${getColumnClass(c)}`} style={{ maxWidth: '180px' }}>
                         {String(item[c] ?? '-')}
                       </td>
                     ))}
                     {!readOnly && (
                       <td className="text-end px-4">
-                        <button onClick={() => { setSelectedRecord(item); setIsModalOpen(true); }} className="btn btn-sm btn-outline-info me-1">Edit</button>
-                        <button onClick={() => handleDelete(item.id)} className="btn btn-sm btn-outline-danger">Delete</button>
+                        <button 
+                          onClick={() => { setSelectedRecord(item); setIsModalOpen(true); }} 
+                          className="btn btn-sm btn-outline-info me-1"
+                          title="Edit"
+                        >
+                          <i className="bi bi-pencil"></i>
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(item.id)} 
+                          className="btn btn-sm btn-outline-danger"
+                          title="Delete"
+                        >
+                          <i className="bi bi-trash"></i>
+                        </button>
                       </td>
                     )}
                   </tr>
@@ -310,13 +346,19 @@ function DashboardContent({ readOnly = false }: DashboardProps) {
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 
           onSave={async (formData) => {
-            if (selectedRecord) await transportService.update(selectedRecord.id, formData);
-            else await transportService.create(formData);
-            setIsModalOpen(false);
-            loadData();
+            setIsSaving(true);
+            try {
+              if (selectedRecord) await transportService.update(selectedRecord.id, formData);
+              else await transportService.create(formData);
+              setIsModalOpen(false);
+              loadData();
+            } finally {
+              setIsSaving(false);
+            }
           }} 
           initialData={selectedRecord}
           columns={allKeys}
+          saving={isSaving}
         />
       )}
     </div>

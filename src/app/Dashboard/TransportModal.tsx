@@ -7,15 +7,16 @@ interface TransportModalProps {
   onSave: (data: any) => void;
   initialData?: any;
   columns: string[];
+  saving?: boolean;
 }
 
 // Columns that should be displayed as checkboxes (true/false)
 const checkboxColumns = [
-  'CRANE', 'CONTAINER', 'FULL_LOADS', 'General_Freight', 'Crane', 'Urgent',
-  'Vehicle', 'Refrigerated', 'URGENT', 'Sensitive', 'Freight'
+   'Container', 'FullLoads', 'GeneralFreight', 'Crane', 'Urgent',
+  'Vehicle', 'Refrigerated', 'Sensitive', 'Freight'
 ];
 
-export default function TransportModal({ isOpen, onClose, onSave, initialData, columns }: TransportModalProps) {
+export default function TransportModal({ isOpen, onClose, onSave, initialData, columns, saving = false }: TransportModalProps) {
   const [formData, setFormData] = useState<any>({});
 
   useEffect(() => {
@@ -36,6 +37,16 @@ export default function TransportModal({ isOpen, onClose, onSave, initialData, c
 
   return (
     <div className="modal d-block show" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      {saving && (
+        <div className="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex align-items-center justify-content-center z-1050" style={{ zIndex: 1060 }}>
+          <div className="text-center">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="mt-2 text-muted fw-semibold">Saving...</p>
+          </div>
+        </div>
+      )}
       <div className="modal-dialog modal-dialog-centered modal-lg">
         <div className="modal-content border-0 shadow-lg">
           <div className="modal-header bg-light">
@@ -157,10 +168,15 @@ export default function TransportModal({ isOpen, onClose, onSave, initialData, c
             </form>
           </div>
           <div className="modal-footer bg-light">
-            <button type="button" className="btn btn-outline-secondary" onClick={onClose}>
+            <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>
               <i className="bi bi-x-lg me-1"></i> Cancel
             </button>
-            <button type="submit" form="transportForm" className="btn btn-primary">
+            <button 
+              type="submit" 
+              form="transportForm" 
+              className="btn btn-primary"
+              disabled={saving}
+            >
               <i className="bi bi-check-lg me-1"></i>
               {initialData ? 'Update Record' : 'Save Record'}
             </button>
